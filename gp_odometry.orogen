@@ -1,0 +1,90 @@
+name "gp_odometry"
+# Optionally declare the version number
+# version "0.1"
+
+# If new data types need to be defined, they have to be put in a separate C++
+# header, and this header will be loaded here
+using_library "gp_odometry" # Gaussian process library
+
+# If the component/deployments use data types that are defined in other oroGen
+# # projects, these projects should be imported there as well.
+ import_types_from "base" #  IMU/Orientation and Joints samples
+import_types_from "gp_odometryTypes.hpp"
+
+# Declare the Three Odometry class
+# The component computes the robot pose based on
+# a complete motion model.
+# Robot joints positions are needed to compute
+# the forward kinematics of robot chains.
+# Angular and robot joints
+# rates are needed to compute the movement.
+#
+#
+# The corresponding C++ class can be edited in tasks/Task.hpp and
+# tasks/Task.cpp, and will be put in the gp_odometry namespace.
+task_context "Task" do
+    # This is the default from now on, and should not be removed. Rock will
+    # transition to a setup where all components use a configuration step.
+    needs_configuration
+
+    #**************************
+    #**** Task Properties *****
+    #**************************
+    property('gaussian_process_x_axis_file', '/std/string').
+        doc "path to Gaussian Process for the Sklearn for x axis model."
+
+    property('gaussian_process_y_axis_file', '/std/string').
+        doc "path to Gaussian Process for the Sklearn for y axis model."
+
+    property('gaussian_process_z_axis_file', '/std/string').
+        doc "path to Gaussian Process for the Sklearn for z axis model."
+
+    property('gaussian_process_predict_frequency', 'double').
+        doc "Frequency in Hertz for smoothing the Gaussian process prediction."
+
+    property('gaussian_process_joints', 'std/vector<std/string>').
+    	doc 'Robot joints to set as input vector for the Gaussian process.'
+
+    #******************************
+    #******* Input ports  *********
+    #******************************
+    input_port('delta_pose_samples', '/base/samples/BodyState').
+        needs_reliable_connection.
+	    doc 'Delta estimated robot pose (from body_frame k-1). Position and velocity is computed from statistical Motion Model.'+
+            'Orientation from IMU gyros integration.'
+
+    input_port('joints_samples', '/base/samples/Joints').
+        needs_reliable_connection.
+        doc 'timestamped joints samples (active and passive) providing odometry information.'+
+            'They have to provide position and speed. In case they do not originally provide both values'+
+            'Another component should perform this computation.'
+
+    input_port('orientation_samples', '/base/samples/RigidBodyState').
+        needs_reliable_connection.
+        doc 'provides timestamped orientation samples.'
+
+    ####################################################################
+    # INFO AND RECOMMENDATIONS:
+    # All the measurements in this task should be calibrated,
+    # compensated and in the robot body_frame.
+    # world_frame is the zero absolute, tangential to an imaginary plane.
+    # navigation_frame is the zero relative (where threed_odometry starts).
+    # The Odometry tasks assumes zero starting pose at relative
+    # navigation_frame.
+    ####################################################################
+    stream_aligner do
+        align_port("delta_pose_samples", 0.08)
+        align_port("joints_samples", 0.08)
+	    align_port("orientation_samples", 0.08)
+        max_latency(1.0)
+    end
+
+    #******************************
+    #******* Output Ports *********
+    #******************************
+    output_port('delta_pose_samples_out', '/base/samples/BodyState').
+	    doc 'Delta estimated robot pose (from body_frame k-1). Position and velocity is computed from statistical Motion Model.'+
+            'Orientation from IMU gyros integration.'
+
+end
+
