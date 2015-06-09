@@ -42,8 +42,11 @@ task_context "Task" do
     property('gaussian_process_predict_frequency', 'double').
         doc "Frequency in Hertz for smoothing the Gaussian process prediction."
 
-    property('gaussian_process_joints', 'std/vector<std/string>').
-    	doc 'Robot joints to set as input vector for the Gaussian process.'
+    property('gaussian_process_position_joint_names', 'std/vector<std/string>').
+    	doc 'Robot joint names to set as joint position input vector for the Gaussian process.'
+
+    property('gaussian_process_speed_joint_names', 'std/vector<std/string>').
+    	doc 'Robot joint names to set as joint velocity input vector for the Gaussian process.'
 
     #******************************
     #******* Input ports  *********
@@ -86,5 +89,6 @@ task_context "Task" do
 	    doc 'Delta estimated robot pose (from body_frame k-1). Position and velocity is computed from statistical Motion Model.'+
             'Orientation from IMU gyros integration.'
 
+    port_driven
 end
 

@@ -16,5 +16,5 @@
   -->
   <depend package="base/types" />
   <depend package="base/orogen/types" />
-  <!--   <depend package="slam/gp_odometry" /> -->
+  <depend package="slam/gp_odometry" />
 </package>

@@ -51,6 +51,7 @@ namespace gp_odometry {
         /*** Property Variables ***/
         /**************************/
         unsigned int gp_number_samples, gp_counter_samples;
+        std::vector<std::string> position_joint_names, speed_joint_names;
 
         /******************************************/
         /*** General Internal Storage Variables ***/
@@ -62,6 +63,8 @@ namespace gp_odometry {
         /***************************/
         /** Input port variables  **/
         /***************************/
+        std::list< ::base::Vector3d > angular_velocity_samples;
+
         std::list< ::base::samples::Joints > joints_samples;
 
         std::list< ::base::samples::RigidBodyState > orientation_samples;
