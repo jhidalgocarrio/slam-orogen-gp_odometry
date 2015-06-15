@@ -51,11 +51,21 @@ void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::sample
         std::cout<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] X-Output: "<<x_value<<std::endl;
         #endif
 
+        /** Get the new delta pose **/
         this->delta_pose = delta_pose_samples_sample;
 
+        /** On-line covariance **/
+        std::vector<double> sigma_pose(3, 0.00);
+        sigma_pose[0] = std::abs(this->delta_pose.velocity.vel[0] - x_value)*this->_delta_pose_samples_period.value();
+        this->sigma_poses.push_back(sigma_pose);
+        Eigen::Matrix<double, 3, 3> cov_position;
+        cov_position = this->delta_pose.cov_pose().bottomRightCorner<3,3>();
+        this->onlineCovariance (cov_position);
+        this->delta_pose.cov_pose().bottomRightCorner<3,3>() = cov_position;
+        this->delta_pose.cov_velocity().bottomRightCorner<3,3>() = cov_position / this->_delta_pose_samples_period.value();
+
         /** Port out the delta pose **/
-        this->delta_pose.velocity.vel[0] = x_value;
-        _delta_pose_samples_out.write(this->delta_pose);
+        this->_delta_pose_samples_out.write(this->delta_pose);
     }
 
     return;
@@ -143,6 +153,10 @@ bool Task::configureHook()
         RTT::log(RTT::Warning)<< ' ';
     }
     RTT::log(RTT::Warning)<<"]"<<RTT::endlog();
+
+    /** Sigma weights **/
+    this->sigma_weights.resize(this->gp_number_samples);
+    this->cubicWeights(this->sigma_weights);
 
     return true;
 }
@@ -275,7 +289,7 @@ std::vector<double> Task::meanSamples()
         samples_mean.push_back(position_joints[i]);
     }
 
-    /** Inertia sensor information **/
+    /** Inertial sensor information **/
     for (register int i=0; i<angular_velocity.size(); ++i)
     {
         samples_mean.push_back(angular_velocity[i]);
@@ -287,4 +301,76 @@ std::vector<double> Task::meanSamples()
     samples_mean.push_back(euler[1]);//Pitch
 
     return samples_mean;
+}
+
+void Task::onlineCovariance (Eigen::Matrix<double, 3, 3>&  covariance)
+{
+
+    Eigen::Vector3d variance(0.00, 0.00, 0.00);
+    Eigen::Vector3d sigma;
+    //sigma[1] = covariance(1,1); sigma[2] = covariance(2,2);
+
+    if (this->sigma_poses.size() < 2.0)
+    {
+
+        std::vector<double> sigma_pose = this->sigma_poses.front();
+        sigma = Eigen::Map< const Eigen::Vector3d >(&(sigma_pose[0]), sigma_pose.size());
+        variance =  sigma;
+    }
+    else
+    {
+        for(std::list< std::vector<double> >::const_iterator it = this->sigma_poses.begin();
+                                                 it != this->sigma_poses.end(); ++it)
+        {
+            sigma = Eigen::Map< const Eigen::Vector3d >(&((*it)[0]), (*it).size());
+            variance +=  sigma;
+        }
+
+        variance /= this->sigma_poses.size();
+    }
+
+    std::cout<<"covariance:\n"<<covariance<<"\n";
+
+    /** Compute the variance = std^2*/
+    variance[0] = variance[0] * variance[0];
+    variance[1] = variance[1] * variance[1];
+    variance[2] = variance[2] * variance[2];
+
+    covariance.diagonal() = variance;
+    ::base::guaranteeSPD< Eigen::Matrix<double, 3, 3> >(covariance);
+
+    std::cout<<"covariance:\n"<<covariance<<"\n";
+
+    this->sigma_poses.pop_front();
+
+    return;
+}
+
+void Task::cubicWeights(std::vector<double>& weights)
+{
+    double alpha = 0.8;
+
+    if (weights.size() > 0)
+    {
+        /** reverse order because the newest samples is in the back **/
+        weights[weights.size()-1] = std::pow(weights.size(), 3);
+        for (register unsigned int i =  weights.size()-2; i > 0; --i)
+        {
+            weights[i] = std::pow(i+1, 3);
+        }
+    }
+
+    /** Normalize the weights **/
+    double sum_weights = 0.00;
+    for(std::vector<double>::const_iterator it = weights.begin(); it != weights.end(); ++it)
+    {
+        sum_weights += (*it);
+    }
+
+    for(std::vector<double>::iterator it = weights.begin(); it != weights.end(); ++it)
+    {
+        (*it) = (*it)/sum_weights;
+    }
+
+    return;
 }

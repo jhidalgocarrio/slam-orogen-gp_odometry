@@ -4,6 +4,7 @@
 #define GP_ODOMETRY_TASK_TASK_HPP
 
 #include <list>
+#include <cmath>
 #include <gp_odometry/Sklearn.hpp>
 
 #include "gp_odometry/TaskBase.hpp"
@@ -59,6 +60,9 @@ namespace gp_odometry {
         gp_odometry::Sklearn gp_x;
 
         std::vector<double> input_vector;
+
+        std::list< std::vector<double> > sigma_poses;
+        std::vector<double> sigma_weights;
 
         /***************************/
         /** Input port variables  **/
@@ -154,6 +158,14 @@ namespace gp_odometry {
         /**
          * */
         std::vector<double> meanSamples();
+
+        /**
+        * */
+        void onlineCovariance (Eigen::Matrix<double, 3, 3>& covariance);
+
+        /**
+        * */
+        void cubicWeights(std::vector<double>& weights);
     };
 }
 
