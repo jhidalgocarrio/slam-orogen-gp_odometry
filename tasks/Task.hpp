@@ -59,9 +59,14 @@ namespace gp_odometry {
         /******************************************/
         gp_odometry::Sklearn gp_x;
 
+        gp_odometry::Sklearn gp_y;
+
+        gp_odometry::Sklearn gp_z;
+
         std::vector<double> input_vector;
 
         std::list< std::vector<double> > sigma_poses;
+
         std::vector<double> sigma_weights;
 
         /***************************/

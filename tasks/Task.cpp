@@ -146,7 +146,7 @@ bool Task::configureHook()
     this->gp_x.init(_gaussian_process_x_axis_file.value());
     std::vector<double> kernel_params = this->gp_x.kernel_();
 
-    RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Model with Kernel parameters: [ ";
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Model for X-axis with Kernel parameters: [ ";
     for (std::vector<double>::const_iterator it = kernel_params.begin(); it != kernel_params.end(); ++it)
     {
         RTT::log(RTT::Warning)<< *it;
