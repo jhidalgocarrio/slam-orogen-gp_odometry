@@ -162,8 +162,8 @@ namespace gp_odometry {
 
         /**
         * */
-        void onlineCovariance (Eigen::Matrix<double, 3, 3>& covariance, double &x_var = 0.00,
-                                double &y_var = 0.00, double &z_var = 0.00);
+        void onlineCovariance (Eigen::Matrix<double, 3, 3>& covariance, double x_var = 0.00,
+                                double y_var = 0.00, double z_var = 0.00);
 
     };
 }

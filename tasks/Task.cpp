@@ -174,10 +174,6 @@ bool Task::configureHook()
     }
     RTT::log(RTT::Warning)<<"]"<<RTT::endlog();
 
-    /** Sigma weights **/
-    this->sigma_weights.resize(this->gp_number_samples);
-    this->cubicWeights(this->sigma_weights);
-
     return true;
 }
 bool Task::startHook()
@@ -323,8 +319,9 @@ std::vector<double> Task::meanSamples()
     return samples_mean;
 }
 
-void Task::onlineCovariance (Eigen::Matrix<double, 3, 3>&  covariance, double &x_var, double &y_var, double &z_var)
+void Task::onlineCovariance (Eigen::Matrix<double, 3, 3>&  covariance, double x_var, double y_var, double z_var)
 {
+    Eigen::Vector3d variance;
 
     std::cout<<"covariance:\n"<<covariance<<"\n";
 
@@ -339,10 +336,10 @@ void Task::onlineCovariance (Eigen::Matrix<double, 3, 3>&  covariance, double &x
     else
         variance[1] = covariance(1,1);
 
-    if (y_var != 0.00)
-        variance[1] = y_var;
+    if (z_var != 0.00)
+        variance[2] = z_var;
     else
-        variance[1] = covariance(1,1);
+        variance[2] = covariance(2,2);
 
     covariance.setZero();
     covariance.diagonal() = variance;
