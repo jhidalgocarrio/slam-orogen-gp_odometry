@@ -39,7 +39,8 @@ void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::sample
     {
 
         this->input_vector = this->meanSamples();
-        double x_value = this->gp_x.predict(this->input_vector);
+        double x_var = 0.00;
+        double x_value = this->gp_x.predict(this->input_vector, x_var);
 
         #ifdef DEBUG_PRINTS
         std::cout<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] GP Input vector: \n";
@@ -55,9 +56,6 @@ void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::sample
         this->delta_pose = delta_pose_samples_sample;
 
         /** On-line covariance **/
-        std::vector<double> sigma_pose(3, 0.00);
-        sigma_pose[0] = std::abs(this->delta_pose.velocity.vel[0] - x_value)*this->_delta_pose_samples_period.value();
-        this->sigma_poses.push_back(sigma_pose);
         Eigen::Matrix<double, 3, 3> cov_position;
         cov_position = this->delta_pose.cov_pose().bottomRightCorner<3,3>();
         this->onlineCovariance (cov_position);
@@ -65,7 +63,7 @@ void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::sample
         this->delta_pose.cov_velocity().bottomRightCorner<3,3>() = cov_position / this->_delta_pose_samples_period.value();
 
         /** Port out the delta pose **/
-        this->_delta_pose_samples_out.write(this->delta_pose);
+        _delta_pose_samples_out.write(this->delta_pose);
     }
 
     return;
@@ -147,6 +145,28 @@ bool Task::configureHook()
     std::vector<double> kernel_params = this->gp_x.kernel_();
 
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Model for X-axis with Kernel parameters: [ ";
+    for (std::vector<double>::const_iterator it = kernel_params.begin(); it != kernel_params.end(); ++it)
+    {
+        RTT::log(RTT::Warning)<< *it;
+        RTT::log(RTT::Warning)<< ' ';
+    }
+    RTT::log(RTT::Warning)<<"]"<<RTT::endlog();
+
+    this->gp_y.init(_gaussian_process_y_axis_file.value());
+    kernel_params = this->gp_y.kernel_();
+
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Model for Y-axis with Kernel parameters: [ ";
+    for (std::vector<double>::const_iterator it = kernel_params.begin(); it != kernel_params.end(); ++it)
+    {
+        RTT::log(RTT::Warning)<< *it;
+        RTT::log(RTT::Warning)<< ' ';
+    }
+    RTT::log(RTT::Warning)<<"]"<<RTT::endlog();
+
+    this->gp_z.init(_gaussian_process_z_axis_file.value());
+    kernel_params = this->gp_z.kernel_();
+
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Model for Y-axis with Kernel parameters: [ ";
     for (std::vector<double>::const_iterator it = kernel_params.begin(); it != kernel_params.end(); ++it)
     {
         RTT::log(RTT::Warning)<< *it;
@@ -303,74 +323,33 @@ std::vector<double> Task::meanSamples()
     return samples_mean;
 }
 
-void Task::onlineCovariance (Eigen::Matrix<double, 3, 3>&  covariance)
+void Task::onlineCovariance (Eigen::Matrix<double, 3, 3>&  covariance, double &x_var, double &y_var, double &z_var)
 {
-
-    Eigen::Vector3d variance(0.00, 0.00, 0.00);
-    Eigen::Vector3d sigma;
-    //sigma[1] = covariance(1,1); sigma[2] = covariance(2,2);
-
-    if (this->sigma_poses.size() < 2.0)
-    {
-
-        std::vector<double> sigma_pose = this->sigma_poses.front();
-        sigma = Eigen::Map< const Eigen::Vector3d >(&(sigma_pose[0]), sigma_pose.size());
-        variance =  sigma;
-    }
-    else
-    {
-        for(std::list< std::vector<double> >::const_iterator it = this->sigma_poses.begin();
-                                                 it != this->sigma_poses.end(); ++it)
-        {
-            sigma = Eigen::Map< const Eigen::Vector3d >(&((*it)[0]), (*it).size());
-            variance +=  sigma;
-        }
-
-        variance /= this->sigma_poses.size();
-    }
 
     std::cout<<"covariance:\n"<<covariance<<"\n";
 
     /** Compute the variance = std^2*/
-    variance[0] = variance[0] * variance[0];
-    variance[1] = variance[1] * variance[1];
-    variance[2] = variance[2] * variance[2];
+    if (x_var != 0.00)
+        variance[0] = x_var;
+    else
+        variance[0] = covariance(0,0);
 
+    if (y_var != 0.00)
+        variance[1] = y_var;
+    else
+        variance[1] = covariance(1,1);
+
+    if (y_var != 0.00)
+        variance[1] = y_var;
+    else
+        variance[1] = covariance(1,1);
+
+    covariance.setZero();
     covariance.diagonal() = variance;
-    ::base::guaranteeSPD< Eigen::Matrix<double, 3, 3> >(covariance);
 
     std::cout<<"covariance:\n"<<covariance<<"\n";
 
-    this->sigma_poses.pop_front();
-
     return;
 }
 
-void Task::cubicWeights(std::vector<double>& weights)
-{
-    double alpha = 0.8;
 
-    if (weights.size() > 0)
-    {
-        /** reverse order because the newest samples is in the back **/
-        weights[weights.size()-1] = std::pow(weights.size(), 3);
-        for (register unsigned int i =  weights.size()-2; i > 0; --i)
-        {
-            weights[i] = std::pow(i+1, 3);
-        }
-    }
-
-    /** Normalize the weights **/
-    double sum_weights = 0.00;
-    for(std::vector<double>::const_iterator it = weights.begin(); it != weights.end(); ++it)
-    {
-        sum_weights += (*it);
-    }
-
-    for(std::vector<double>::iterator it = weights.begin(); it != weights.end(); ++it)
-    {
-        (*it) = (*it)/sum_weights;
-    }
-
-    return;
-}
