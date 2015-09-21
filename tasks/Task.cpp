@@ -85,7 +85,7 @@ void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::sample
     {
         this->delta_pose.position[2] = 0.00;
         this->delta_pose.cov_position = this->cov_position;
-        this->delta_pose.cov_velocity = this->cov_position / this->_delta_pose_samples_period.value();
+        this->delta_pose.cov_velocity = this->cov_position / (this->_delta_pose_samples_period.value() * this->_delta_pose_samples_period.value());
     }
 
     /** Port out the delta pose **/
