@@ -3,10 +3,14 @@
 #ifndef GP_ODOMETRY_TASK_TASK_HPP
 #define GP_ODOMETRY_TASK_TASK_HPP
 
+/** Std libraries **/
 #include <list>
 #include <cmath>
+
+/** library **/
 #include <gp_odometry/Sklearn.hpp>
 
+/** Task base **/
 #include "gp_odometry/TaskBase.hpp"
 
 namespace gp_odometry {
@@ -40,7 +44,7 @@ namespace gp_odometry {
 	friend class TaskBase;
     protected:
 
-        virtual void delta_pose_samplesCallback(const base::Time &ts, const ::base::samples::BodyState &delta_pose_samples_sample);
+        virtual void delta_pose_samplesCallback(const base::Time &ts, const ::base::samples::RigidBodyState &delta_pose_samples_sample);
 
         virtual void joints_samplesCallback(const base::Time &ts, const ::base::samples::Joints &joints_samples_sample);
 
@@ -63,21 +67,27 @@ namespace gp_odometry {
 
         gp_odometry::Sklearn gp_z;
 
-        std::vector<double> input_vector;
+        Eigen::Vector3d estimation;
+
+        Eigen::Vector3d variance;
 
         /***************************/
         /** Input port variables  **/
         /***************************/
+        ::base::Vector3d delta_position;
+
         std::list< ::base::Vector3d > angular_velocity_samples;
 
         std::list< ::base::samples::Joints > joints_samples;
 
         std::list< ::base::samples::RigidBodyState > orientation_samples;
 
+        Eigen::Matrix3d cov_position;
+
         /***************************/
         /** Output port variables **/
         /***************************/
-        ::base::samples::BodyState delta_pose;
+        ::base::samples::RigidBodyState delta_pose;
 
 
     public:
@@ -127,7 +137,7 @@ namespace gp_odometry {
          *
          * The error(), exception() and fatal() calls, when called in this hook,
          * allow to get into the associated RunTimeError, Exception and
-         * FatalError states. 
+         * FatalError states.
          *
          * In the first case, updateHook() is still called, and recover() allows
          * you to go back into the Running state.  In the second case, the
@@ -162,7 +172,7 @@ namespace gp_odometry {
 
         /**
         * */
-        void onlineCovariance (Eigen::Matrix<double, 3, 3>& covariance, double x_var = 0.00,
+        void onlineCovariance (Eigen::Matrix3d& covariance, double x_var = 0.00,
                                 double y_var = 0.00, double z_var = 0.00);
 
     };

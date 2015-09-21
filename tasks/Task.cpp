@@ -20,13 +20,16 @@ Task::~Task()
 {
 }
 
-void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::samples::BodyState &delta_pose_samples_sample)
+void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::samples::RigidBodyState &delta_pose_samples_sample)
 {
     #ifdef DEBUG_PRINTS
-    std::cout<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] Received time-stamp: "<<delta_pose_samples_sample.time.toMicroseconds()<<"\n";
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] Received time-stamp: "<<delta_pose_samples_sample.time.toMicroseconds()<<RTT::endlog();
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] angular_velocity_samples.size(): "<<this->angular_velocity_samples.size()<<RTT::endlog();
     #endif
 
-    this->angular_velocity_samples.push_back(delta_pose_samples_sample.angular_velocity());
+    this->angular_velocity_samples.push_back(delta_pose_samples_sample.angular_velocity);
+
+    this->delta_position += delta_pose_samples_sample.position;
 
     if(this->angular_velocity_samples.size() > this->gp_number_samples)
     {
@@ -38,33 +41,55 @@ void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::sample
             &&(this->angular_velocity_samples.size() == this->gp_number_samples))
     {
 
-        this->input_vector = this->meanSamples();
-        double x_var = 0.00;
-        double x_value = this->gp_x.predict(this->input_vector, x_var);
+        std::vector<double> input_vector = this->meanSamples();
+
+        estimation[0] = this->gp_x.predict("gp_x", input_vector, variance[0]);
+        estimation[1] = this->gp_y.predict("gp_y", input_vector, variance[1]);
+        estimation[2] = this->gp_z.predict("gp_z", input_vector, variance[2]);
+
+        this->delta_position = this->delta_position/this->gp_number_samples;
+
+        //this->cov_position = 1.0e-03 * Eigen::Matrix3d::Identity();
+        //this->cov_position(2,2) = 1.0e-10;
+        this->cov_position = delta_pose_samples_sample.cov_position;
+        this->onlineCovariance (this->cov_position, pow(fabs(this->delta_position[0] - estimation[0]), 2), pow(fabs(this->delta_position[1] - estimation[1]), 2), pow(fabs(this->delta_position[2] - estimation[2]), 2));
 
         #ifdef DEBUG_PRINTS
-        std::cout<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] GP Input vector: \n";
-        for (std::vector<double>::const_iterator i = this->input_vector.begin(); i != this->input_vector.end(); ++i)
+        RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] GP Input vector: "<<RTT::endlog();
+        for (std::vector<double>::const_iterator i = input_vector.begin(); i != input_vector.end(); ++i)
         {
-            std::cout << *i << ' ';
+            RTT::log(RTT::Warning) << *i << ' ';
         }
-        std::cout<<"\n";
-        std::cout<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] X-Output: "<<x_value<<std::endl;
+        RTT::log(RTT::Warning)<<RTT::endlog();
+        RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] GP Output: "<<estimation[0]<<" "<<estimation[1]<<" "<<estimation[2]<<RTT::endlog();
+        RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] Parametric: "<<this->delta_position[0]<<" "<<this->delta_position[1]<<" "<<this->delta_position[2]<<RTT::endlog();
+        RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] Variance: "<<variance[0]<<" "<<variance[1]<<" "<<variance[2]<<RTT::endlog();
         #endif
 
-        /** Get the new delta pose **/
-        this->delta_pose = delta_pose_samples_sample;
-
-        /** On-line covariance **/
-        Eigen::Matrix<double, 3, 3> cov_position;
-        cov_position = this->delta_pose.cov_pose().bottomRightCorner<3,3>();
-        this->onlineCovariance (cov_position);
-        this->delta_pose.cov_pose().bottomRightCorner<3,3>() = cov_position;
-        this->delta_pose.cov_velocity().bottomRightCorner<3,3>() = cov_position / this->_delta_pose_samples_period.value();
-
-        /** Port out the delta pose **/
-        _delta_pose_samples_out.write(this->delta_pose);
+        this->delta_position.setZero();
+        this->angular_velocity_samples.clear();
+        this->joints_samples.clear();
+        this->orientation_samples.clear();
     }
+
+    /** Get the new delta pose **/
+    this->delta_pose = delta_pose_samples_sample;
+
+    if (this->delta_pose.position.sum() < 1.0e-06)
+    {
+        this->delta_pose.position << 0.00, 0.00, 0.00;
+
+        /** Covariance as estimated in the parametric odometry **/
+    }
+    else
+    {
+        this->delta_pose.position[2] = 0.00;
+        this->delta_pose.cov_position = this->cov_position;
+        this->delta_pose.cov_velocity = this->cov_position / this->_delta_pose_samples_period.value();
+    }
+
+    /** Port out the delta pose **/
+    _delta_pose_samples_out.write(this->delta_pose);
 
     return;
 }
@@ -72,8 +97,8 @@ void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::sample
 void Task::joints_samplesCallback(const base::Time &ts, const ::base::samples::Joints &joints_samples_sample)
 {
     #ifdef DEBUG_PRINTS
-    std::cout<<"[GP_ODOMETRY JOINT_SAMPLES] Received time-stamp: "<<joints_samples_sample.time.toMicroseconds()<<"\n";
-    std::cout<<"[GP_ODOMETRY ORIENTATION_SAMPLES] orientation_samples.size(): "<<this->joints_samples.size()<<"\n";
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY JOINT_SAMPLES] Received time-stamp: "<<joints_samples_sample.time.toMicroseconds()<<RTT::endlog();
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY JOINT_SAMPLES] joints_samples.size(): "<<this->joints_samples.size()<<RTT::endlog();
     #endif
 
     this->joints_samples.push_back(joints_samples_sample);
@@ -88,8 +113,8 @@ void Task::joints_samplesCallback(const base::Time &ts, const ::base::samples::J
 void Task::orientation_samplesCallback(const base::Time &ts, const ::base::samples::RigidBodyState &orientation_samples_sample)
 {
     #ifdef DEBUG_PRINTS
-    std::cout<<"[GP_ODOMETRY ORIENTATION_SAMPLES] Received time-stamp: "<<orientation_samples_sample.time.toMicroseconds()<<"\n";
-    std::cout<<"[GP_ODOMETRY ORIENTATION_SAMPLES] orientation_samples.size(): "<<this->orientation_samples.size()<<"\n";
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY ORIENTATION_SAMPLES] Received time-stamp: "<<orientation_samples_sample.time.toMicroseconds()<<RTT::endlog();
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY ORIENTATION_SAMPLES] orientation_samples.size(): "<<this->orientation_samples.size()<<RTT::endlog();
     #endif
 
     this->orientation_samples.push_back(orientation_samples_sample);
@@ -122,7 +147,7 @@ bool Task::configureHook()
     RTT::log(RTT::Warning)<<_gaussian_process_predict_frequency.value()<<RTT::endlog();
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Number samples to average: ";
     RTT::log(RTT::Warning)<<this->gp_number_samples<<RTT::endlog();
-    RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Position Joints Names:\n";
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Position Joints Names:"<<RTT::endlog();
     for (std::vector<std::string>::const_iterator it = this->position_joint_names.begin(); it != this->position_joint_names.end(); ++it)
     {
         RTT::log(RTT::Warning)<< *it;
@@ -130,7 +155,7 @@ bool Task::configureHook()
     }
     RTT::log(RTT::Warning)<<RTT::endlog();;
 
-    RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Speed Joints Names:\n";
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Speed Joints Names:"<<RTT::endlog();
     for (std::vector<std::string>::const_iterator it = this->speed_joint_names.begin(); it != this->speed_joint_names.end(); ++it)
     {
         RTT::log(RTT::Warning)<< *it;
@@ -141,8 +166,8 @@ bool Task::configureHook()
     /*************************************************/
     /** Create and configure the Gaussian processes **/
     /*************************************************/
-    this->gp_x.init(_gaussian_process_x_axis_file.value());
-    std::vector<double> kernel_params = this->gp_x.kernel_();
+    this->gp_x.init(_gaussian_process_x_axis_file.value(), "gp_x");
+    std::vector<double> kernel_params = this->gp_x.theta_("gp_x");
 
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Model for X-axis with Kernel parameters: [ ";
     for (std::vector<double>::const_iterator it = kernel_params.begin(); it != kernel_params.end(); ++it)
@@ -152,8 +177,8 @@ bool Task::configureHook()
     }
     RTT::log(RTT::Warning)<<"]"<<RTT::endlog();
 
-    this->gp_y.init(_gaussian_process_y_axis_file.value());
-    kernel_params = this->gp_y.kernel_();
+    this->gp_y.init(_gaussian_process_y_axis_file.value(), "gp_y");
+    kernel_params = this->gp_y.theta_("gp_y");
 
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Model for Y-axis with Kernel parameters: [ ";
     for (std::vector<double>::const_iterator it = kernel_params.begin(); it != kernel_params.end(); ++it)
@@ -163,8 +188,8 @@ bool Task::configureHook()
     }
     RTT::log(RTT::Warning)<<"]"<<RTT::endlog();
 
-    this->gp_z.init(_gaussian_process_z_axis_file.value());
-    kernel_params = this->gp_z.kernel_();
+    this->gp_z.init(_gaussian_process_z_axis_file.value(), "gp_z");
+    kernel_params = this->gp_z.theta_("gp_z");
 
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Model for Y-axis with Kernel parameters: [ ";
     for (std::vector<double>::const_iterator it = kernel_params.begin(); it != kernel_params.end(); ++it)
@@ -173,6 +198,14 @@ bool Task::configureHook()
         RTT::log(RTT::Warning)<< ' ';
     }
     RTT::log(RTT::Warning)<<"]"<<RTT::endlog();
+
+    /*****************************/
+    /** Clear storage variables **/
+    /*****************************/
+    this->delta_position.setZero();
+    this->angular_velocity_samples.clear();
+    this->joints_samples.clear();
+    this->orientation_samples.clear();
 
     return true;
 }
@@ -211,7 +244,7 @@ std::vector<double> Task::meanSamples()
     std::vector<double> samples_mean;
 
     #ifdef DEBUG_PRINTS
-    std::cout<<"[GP_ODOMETRY MEAN_SAMPLES] \n";
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY MEAN_SAMPLES] "<<RTT::endlog();
     #endif
 
     /** ********* **/
@@ -319,13 +352,13 @@ std::vector<double> Task::meanSamples()
     return samples_mean;
 }
 
-void Task::onlineCovariance (Eigen::Matrix<double, 3, 3>&  covariance, double x_var, double y_var, double z_var)
+void Task::onlineCovariance (Eigen::Matrix3d&  covariance, double x_var, double y_var, double z_var)
 {
     Eigen::Vector3d variance;
 
-    std::cout<<"covariance:\n"<<covariance<<"\n";
+    //std::cout<<"[ONLINE_COV] covariance:\n"<<covariance<<std::endl;
 
-    /** Compute the variance = std^2*/
+    /** Compute the variance */
     if (x_var != 0.00)
         variance[0] = x_var;
     else
@@ -344,7 +377,7 @@ void Task::onlineCovariance (Eigen::Matrix<double, 3, 3>&  covariance, double x_
     covariance.setZero();
     covariance.diagonal() = variance;
 
-    std::cout<<"covariance:\n"<<covariance<<"\n";
+    //std::cout<<"[ONLINE_COV] covariance:\n"<<covariance<<std::endl;
 
     return;
 }
