@@ -1,112 +1,56 @@
 /* Generated from orogen/lib/orogen/templates/tasks/Task.hpp */
 
-#ifndef GP_ODOMETRY_TASK_TASK_HPP
-#define GP_ODOMETRY_TASK_TASK_HPP
+#ifndef GP_ODOMETRY_GPYTASK_TASK_HPP
+#define GP_ODOMETRY_GPYTASK_TASK_HPP
 
-/** Std libraries **/
-#include <list>
-#include <cmath>
+#include "gp_odometry/GpyTaskBase.hpp"
 
-/** library **/
-#include <gp_odometry/Sklearn.hpp>
+namespace gp_odometry{
 
-/** Task base **/
-#include "gp_odometry/TaskBase.hpp"
-
-namespace gp_odometry {
-
-    /*! \class Task 
+    /*! \class GpyTask
      * \brief The task context provides and requires services. It uses an ExecutionEngine to perform its functions.
      * Essential interfaces are operations, data flow ports and properties. These interfaces have been defined using the oroGen specification.
      * In order to modify the interfaces you should (re)use oroGen and rely on the associated workflow.
-     * Declare the Three Odometry class
-    The component computes the robot pose based on
-    a complete motion model.
-    Robot joints positions are needed to compute
-    the forward kinematics of robot chains.
-    Angular and robot joints
-    rates are needed to compute the movement.
-
-
-    The corresponding C++ class can be edited in tasks/Task.hpp and
-    tasks/Task.cpp, and will be put in the gp_odometry namespace.
+     * 
      * \details
      * The name of a TaskContext is primarily defined via:
      \verbatim
      deployment 'deployment_name'
-         task('custom_task_name','gp_odometry::Task')
+         task('custom_task_name','gp_odometry::GpyTask')
      end
      \endverbatim
-     *  It can be dynamically adapted when the deployment is called with a prefix argument. 
+     *  It can be dynamically adapted when the deployment is called with a prefix argument.
      */
-    class Task : public TaskBase
+    class GpyTask : public GpyTaskBase
     {
-	friend class TaskBase;
+	friend class GpyTaskBase;
     protected:
 
         virtual void delta_pose_samplesCallback(const base::Time &ts, const ::base::samples::RigidBodyState &delta_pose_samples_sample);
+
+        virtual void inertial_samplesCallback(const base::Time &ts, const ::base::samples::IMUSensors &inertial_samples_sample);
 
         virtual void joints_samplesCallback(const base::Time &ts, const ::base::samples::Joints &joints_samples_sample);
 
         virtual void orientation_samplesCallback(const base::Time &ts, const ::base::samples::RigidBodyState &orientation_samples_sample);
 
-    protected:
-
-        /**************************/
-        /*** Property Variables ***/
-        /**************************/
-        unsigned int gp_number_samples, gp_counter_samples;
-        std::vector<std::string> position_joint_names, speed_joint_names;
-
-        /******************************************/
-        /*** General Internal Storage Variables ***/
-        /******************************************/
-        gp_odometry::Sklearn gp_x;
-
-        gp_odometry::Sklearn gp_y;
-
-        gp_odometry::Sklearn gp_z;
-
-        Eigen::Vector3d estimation;
-
-        Eigen::Vector3d variance;
-
-        /***************************/
-        /** Input port variables  **/
-        /***************************/
-        ::base::Vector3d delta_position;
-
-        std::list< ::base::Vector3d > angular_velocity_samples;
-
-        std::list< ::base::samples::Joints > joints_samples;
-
-        std::list< ::base::samples::RigidBodyState > orientation_samples;
-
-        Eigen::Matrix3d cov_position;
-
-        /***************************/
-        /** Output port variables **/
-        /***************************/
-        ::base::samples::RigidBodyState delta_pose;
-
-
     public:
-        /** TaskContext constructor for Task
+        /** TaskContext constructor for GpyTask
          * \param name Name of the task. This name needs to be unique to make it identifiable via nameservices.
          * \param initial_state The initial TaskState of the TaskContext. Default is Stopped state.
          */
-        Task(std::string const& name = "gp_odometry::Task");
+        GpyTask(std::string const& name = "gp_odometry::GpyTask");
 
-        /** TaskContext constructor for Task 
-         * \param name Name of the task. This name needs to be unique to make it identifiable for nameservices. 
-         * \param engine The RTT Execution engine to be used for this task, which serialises the execution of all commands, programs, state machines and incoming events for a task. 
+        /** TaskContext constructor for GpyTask
+         * \param name Name of the task. This name needs to be unique to make it identifiable for nameservices.
+         * \param engine The RTT Execution engine to be used for this task, which serialises the execution of all commands, programs, state machines and incoming events for a task.
          * 
          */
-        Task(std::string const& name, RTT::ExecutionEngine* engine);
+        GpyTask(std::string const& name, RTT::ExecutionEngine* engine);
 
-        /** Default deconstructor of Task
+        /** Default deconstructor of GpyTask
          */
-	    ~Task();
+	~GpyTask();
 
         /** This hook is called by Orocos when the state machine transitions
          * from PreOperational to Stopped. If it returns false, then the
@@ -165,16 +109,6 @@ namespace gp_odometry {
          * before calling start() again.
          */
         void cleanupHook();
-
-        /**
-         * */
-        std::vector<double> meanSamples();
-
-        /**
-        * */
-        void onlineCovariance (Eigen::Matrix3d& covariance, double x_var = 0.00,
-                                double y_var = 0.00, double z_var = 0.00);
-
     };
 }
 

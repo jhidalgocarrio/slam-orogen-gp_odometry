@@ -9,6 +9,12 @@
  */
 
 namespace gp_odometry {
+
+    enum GPType
+    {
+        SKLEARN,
+        GPY
+    };
 }
 
 #endif

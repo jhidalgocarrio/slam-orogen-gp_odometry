@@ -22,7 +22,7 @@ import_types_from "gp_odometryTypes.hpp"
 #
 # The corresponding C++ class can be edited in tasks/Task.hpp and
 # tasks/Task.cpp, and will be put in the gp_odometry namespace.
-task_context "Task" do
+task_context "SklearnTask" do
     # This is the default from now on, and should not be removed. Rock will
     # transition to a setup where all components use a configuration step.
     needs_configuration
@@ -43,24 +43,24 @@ task_context "Task" do
         doc "Frequency in Hertz for smoothing the Gaussian process prediction."
 
     property('gaussian_process_position_joint_names', 'std/vector<std/string>').
-    	doc 'Robot joint names to set as joint position input vector for the Gaussian process.'
+        doc 'Robot joint names to set as joint position input vector for the Gaussian process.'
 
     property('gaussian_process_speed_joint_names', 'std/vector<std/string>').
-    	doc 'Robot joint names to set as joint velocity input vector for the Gaussian process.'
+        doc 'Robot joint names to set as joint velocity input vector for the Gaussian process.'
 
     #******************************
     #******* Input ports  *********
     #******************************
     input_port('delta_pose_samples', '/base/samples/RigidBodyState').
         needs_reliable_connection.
-	    doc 'Delta estimated robot pose (from body_frame k-1). Position and velocity is computed from statistical Motion Model.'+
+        doc 'Delta estimated robot pose (from body_frame k-1). Position and velocity is computed from statistical Motion Model.'+
             'Orientation from IMU gyros integration.'
 
     input_port('joints_samples', '/base/samples/Joints').
         needs_reliable_connection.
         doc 'timestamped joints samples (active and passive) providing odometry information.'+
             'They have to provide position and speed. In case they do not originally provide both values'+
-            'Another component should perform this computation.'
+            'Another component should peRform this computation.'
 
     input_port('orientation_samples', '/base/samples/RigidBodyState').
         needs_reliable_connection.
@@ -78,7 +78,7 @@ task_context "Task" do
     stream_aligner do
         align_port("delta_pose_samples", 0.08)
         align_port("joints_samples", 0.08)
-	    align_port("orientation_samples", 0.08)
+       align_port("orientation_samples", 0.08)
         max_latency(1.0)
     end
 
@@ -86,9 +86,78 @@ task_context "Task" do
     #******* Output Ports *********
     #******************************
     output_port('delta_pose_samples_out', '/base/samples/RigidBodyState').
-	    doc 'Delta estimated robot pose (from body_frame k-1). Position and velocity is computed from statistical parametric motion Model '+
+       doc 'Delta estimated robot pose (from body_frame k-1). Position and velocity is computed from statistical parametric motion Model '+
             'and affected by the Gaussian process prediction.'
 
     port_driven
 end
 
+task_context "GpyTask" do
+    # This is the default from now on, and should not be removed. Rock will
+    # transition to a setup where all components use a configuration step.
+    needs_configuration
+
+    #**************************
+    #**** Task Properties *****
+    #**************************
+    property('gaussian_process_file', '/std/string').
+        doc "path to Gaussian Process for the Sklearn for x axis model."
+
+    property('gaussian_process_predict_frequency', 'double').
+        doc "Frequency in Hertz for smoothing the Gaussian process prediction."
+
+    property('gaussian_process_position_joint_names', 'std/vector<std/string>').
+        doc 'Robot joint names to set as joint position input vector for the Gaussian process.'
+
+    property('gaussian_process_speed_joint_names', 'std/vector<std/string>').
+        doc 'Robot joint names to set as joint velocity input vector for the Gaussian process.'
+
+    #******************************
+    #******* Input ports  *********
+    #******************************
+    input_port('delta_pose_samples', '/base/samples/RigidBodyState').
+        needs_reliable_connection.
+        doc 'Delta estimated robot pose (from body_frame k-1). Position and velocity is computed from statistical Motion Model.'+
+            'Orientation from IMU gyros integration.'
+
+    input_port('joints_samples', '/base/samples/Joints').
+        needs_reliable_connection.
+        doc 'timestamped joints samples (active and passive) providing odometry information.'+
+            'They have to provide position and speed. In case they do not originally provide both values'+
+            'Another component should peRform this computation.'
+
+    input_port('inertial_samples', '/base/samples/IMUSensors').
+        needs_reliable_connection.
+        doc 'provides timestamped IMUReading samples containing the calibrated sensor readings (linear acceleration and angular velocity).'
+
+    input_port('orientation_samples', '/base/samples/RigidBodyState').
+        needs_reliable_connection.
+        doc 'provides timestamped orientation samples.'
+
+    ####################################################################
+    # INFO AND RECOMMENDATIONS:
+    # All the measurements in this task should be calibrated,
+    # compensated and in the robot body_frame.
+    # world_frame is the zero absolute, tangential to an imaginary plane.
+    # navigation_frame is the zero relative (where threed_odometry starts).
+    # The Odometry tasks assumes zero starting pose at relative
+    # navigation_frame.
+    ####################################################################
+    stream_aligner do
+        align_port("delta_pose_samples", 0.08)
+        align_port("joints_samples", 0.08)
+        align_port("inertial_samples", 0.08)
+        align_port("orientation_samples", 0.08)
+        max_latency(1.0)
+    end
+
+    #******************************
+    #******* Output Ports *********
+    #******************************
+    output_port('delta_pose_samples_out', '/base/samples/RigidBodyState').
+        doc 'Delta estimated robot pose (from body_frame k-1). Position and velocity is computed from statistical parametric motion Model '+
+            'and affected by the Gaussian process prediction.'
+
+    port_driven
+
+end

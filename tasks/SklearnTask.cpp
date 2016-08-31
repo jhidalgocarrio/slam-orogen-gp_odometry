@@ -1,26 +1,26 @@
-/* Generated from orogen/lib/orogen/templates/tasks/Task.cpp */
+/* Generated from orogen/lib/orogen/templates/tasks/SklearnTask.cpp */
 
-#include "Task.hpp"
+#include "SklearnTask.hpp"
 
 //#define DEBUG_PRINTS 1
 
 using namespace gp_odometry;
 
-Task::Task(std::string const& name)
-    : TaskBase(name)
+SklearnTask::SklearnTask(std::string const& name)
+    : SklearnTaskBase(name)
 {
 }
 
-Task::Task(std::string const& name, RTT::ExecutionEngine* engine)
-    : TaskBase(name, engine)
+SklearnTask::SklearnTask(std::string const& name, RTT::ExecutionEngine* engine)
+    : SklearnTaskBase(name, engine)
 {
 }
 
-Task::~Task()
+SklearnTask::~SklearnTask()
 {
 }
 
-void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::samples::RigidBodyState &delta_pose_samples_sample)
+void SklearnTask::delta_pose_samplesCallback(const base::Time &ts, const ::base::samples::RigidBodyState &delta_pose_samples_sample)
 {
     #ifdef DEBUG_PRINTS
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] Received time-stamp: "<<delta_pose_samples_sample.time.toMicroseconds()<<RTT::endlog();
@@ -42,17 +42,19 @@ void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::sample
     {
 
         std::vector<double> input_vector = this->meanSamples();
+        std::vector<double> var(1);
 
-        estimation[0] = this->gp_x.predict("gp_x", input_vector, variance[0]);
-        estimation[1] = this->gp_y.predict("gp_y", input_vector, variance[1]);
-        estimation[2] = this->gp_z.predict("gp_z", input_vector, variance[2]);
+        this->estimation[0] = this->gp_x.predict("gp_x", input_vector, var)[0]; this->variance[0] = var[0];
+        this->estimation[1] = this->gp_y.predict("gp_y", input_vector, var)[0]; this->variance[1] = var[0];
+        this->estimation[2] = this->gp_z.predict("gp_z", input_vector, var)[0]; this->variance[2] = var[0];
+
 
         this->delta_position = this->delta_position/this->gp_number_samples;
 
         //this->cov_position = 1.0e-03 * Eigen::Matrix3d::Identity();
         //this->cov_position(2,2) = 1.0e-10;
         this->cov_position = delta_pose_samples_sample.cov_position;
-        this->onlineCovariance (this->cov_position, pow(fabs(this->delta_position[0] - estimation[0]), 2), pow(fabs(this->delta_position[1] - estimation[1]), 2), pow(fabs(this->delta_position[2] - estimation[2]), 2));
+        this->onlineCovariance (this->cov_position, pow(fabs(this->delta_position[0] - this->estimation[0]), 2), pow(fabs(this->delta_position[1] - estimation[1]), 2), pow(fabs(this->delta_position[2] - estimation[2]), 2));
 
         #ifdef DEBUG_PRINTS
         RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] GP Input vector: "<<RTT::endlog();
@@ -61,9 +63,9 @@ void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::sample
             RTT::log(RTT::Warning) << *i << ' ';
         }
         RTT::log(RTT::Warning)<<RTT::endlog();
-        RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] GP Output: "<<estimation[0]<<" "<<estimation[1]<<" "<<estimation[2]<<RTT::endlog();
+        RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] GP Output: "<<this->estimation[0]<<" "<<estimation[1]<<" "<<estimation[2]<<RTT::endlog();
         RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] Parametric: "<<this->delta_position[0]<<" "<<this->delta_position[1]<<" "<<this->delta_position[2]<<RTT::endlog();
-        RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] Variance: "<<variance[0]<<" "<<variance[1]<<" "<<variance[2]<<RTT::endlog();
+        RTT::log(RTT::Warning)<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] Variance: "<<this->variance[0]<<" "<<this->variance[1]<<" "<<this->variance[2]<<RTT::endlog();
         #endif
 
         this->delta_position.setZero();
@@ -94,7 +96,7 @@ void Task::delta_pose_samplesCallback(const base::Time &ts, const ::base::sample
     return;
 }
 
-void Task::joints_samplesCallback(const base::Time &ts, const ::base::samples::Joints &joints_samples_sample)
+void SklearnTask::joints_samplesCallback(const base::Time &ts, const ::base::samples::Joints &joints_samples_sample)
 {
     #ifdef DEBUG_PRINTS
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY JOINT_SAMPLES] Received time-stamp: "<<joints_samples_sample.time.toMicroseconds()<<RTT::endlog();
@@ -110,7 +112,7 @@ void Task::joints_samplesCallback(const base::Time &ts, const ::base::samples::J
 
 }
 
-void Task::orientation_samplesCallback(const base::Time &ts, const ::base::samples::RigidBodyState &orientation_samples_sample)
+void SklearnTask::orientation_samplesCallback(const base::Time &ts, const ::base::samples::RigidBodyState &orientation_samples_sample)
 {
     #ifdef DEBUG_PRINTS
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY ORIENTATION_SAMPLES] Received time-stamp: "<<orientation_samples_sample.time.toMicroseconds()<<RTT::endlog();
@@ -127,12 +129,12 @@ void Task::orientation_samplesCallback(const base::Time &ts, const ::base::sampl
 }
 
 /// The following lines are template definitions for the various state machine
-// hooks defined by Orocos::RTT. See Task.hpp for more detailed
+// hooks defined by Orocos::RTT. See SklearnTask.hpp for more detailed
 // documentation about them.
 
-bool Task::configureHook()
+bool SklearnTask::configureHook()
 {
-    if (! TaskBase::configureHook())
+    if (! SklearnTaskBase::configureHook())
         return false;
 
     /************************/
@@ -209,34 +211,34 @@ bool Task::configureHook()
 
     return true;
 }
-bool Task::startHook()
+bool SklearnTask::startHook()
 {
-    if (! TaskBase::startHook())
+    if (! SklearnTaskBase::startHook())
         return false;
     return true;
 }
-void Task::updateHook()
+void SklearnTask::updateHook()
 {
-    TaskBase::updateHook();
+    SklearnTaskBase::updateHook();
 }
-void Task::errorHook()
+void SklearnTask::errorHook()
 {
-    TaskBase::errorHook();
+    SklearnTaskBase::errorHook();
 }
-void Task::stopHook()
+void SklearnTask::stopHook()
 {
     this->angular_velocity_samples.clear();
     this->joints_samples.clear();
     this->orientation_samples.clear();
 
-    TaskBase::stopHook();
+    SklearnTaskBase::stopHook();
 }
-void Task::cleanupHook()
+void SklearnTask::cleanupHook()
 {
-    TaskBase::cleanupHook();
+    SklearnTaskBase::cleanupHook();
 }
 
-std::vector<double> Task::meanSamples()
+std::vector<double> SklearnTask::meanSamples()
 {
     ::base::Vector3d angular_velocity(0.00, 0.00, 0.00);
     Eigen::Quaterniond orientation_quaternion;
@@ -352,7 +354,7 @@ std::vector<double> Task::meanSamples()
     return samples_mean;
 }
 
-void Task::onlineCovariance (Eigen::Matrix3d&  covariance, double x_var, double y_var, double z_var)
+void SklearnTask::onlineCovariance (Eigen::Matrix3d&  covariance, double x_var, double y_var, double z_var)
 {
     Eigen::Vector3d variance;
 
