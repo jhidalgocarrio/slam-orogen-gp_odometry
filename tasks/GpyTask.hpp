@@ -5,6 +5,13 @@
 
 #include "gp_odometry/GpyTaskBase.hpp"
 
+/** Std libraries **/
+#include <list>
+#include <cmath>
+
+/** library **/
+#include <gp_odometry/Gpy.hpp>
+
 namespace gp_odometry{
 
     /*! \class GpyTask
@@ -23,7 +30,40 @@ namespace gp_odometry{
      */
     class GpyTask : public GpyTaskBase
     {
-	friend class GpyTaskBase;
+    friend class GpyTaskBase;
+
+    public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    protected:
+
+        /**************************/
+        /*** Property Variables ***/
+        /**************************/
+        unsigned int gp_number_samples, gp_counter_samples;
+        std::vector<std::string> position_joint_names, speed_joint_names;
+
+        /******************************************/
+        /*** General Internal Storage Variables ***/
+        /******************************************/
+        gp_odometry::Gpy gp;
+
+        std::vector<double> pred_mean, pred_var;
+
+        /***************************/
+        /** Input port variables  **/
+        /***************************/
+        std::list< ::base::samples::Joints > joints_samples;
+
+        std::list< ::base::samples::RigidBodyState > orientation_samples;
+
+        std::list< ::base::samples::IMUSensors > inertial_samples;
+
+        /***************************/
+        /** Output port variables **/
+        /***************************/
+        ::base::samples::RigidBodyState delta_pose;
+
     protected:
 
         virtual void delta_pose_samplesCallback(const base::Time &ts, const ::base::samples::RigidBodyState &delta_pose_samples_sample);
@@ -50,7 +90,7 @@ namespace gp_odometry{
 
         /** Default deconstructor of GpyTask
          */
-	~GpyTask();
+    ~GpyTask();
 
         /** This hook is called by Orocos when the state machine transitions
          * from PreOperational to Stopped. If it returns false, then the
@@ -109,6 +149,11 @@ namespace gp_odometry{
          * before calling start() again.
          */
         void cleanupHook();
+
+        /** @brief Computes the mean samples
+         * */
+        std::vector<double> meanSamples();
+
     };
 }
 

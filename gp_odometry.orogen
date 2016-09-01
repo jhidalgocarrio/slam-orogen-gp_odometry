@@ -101,7 +101,7 @@ task_context "GpyTask" do
     #**** Task Properties *****
     #**************************
     property('gaussian_process_file', '/std/string').
-        doc "path to Gaussian Process for the Sklearn for x axis model."
+        doc "path to Gaussian Process model."
 
     property('gaussian_process_predict_frequency', 'double').
         doc "Frequency in Hertz for smoothing the Gaussian process prediction."
