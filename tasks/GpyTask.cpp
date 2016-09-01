@@ -2,7 +2,7 @@
 
 #include "GpyTask.hpp"
 
-#define DEBUG_PRINTS 1
+//#define DEBUG_PRINTS 1
 
 using namespace gp_odometry;
 
@@ -140,7 +140,7 @@ bool GpyTask::configureHook()
     /*************************************************/
     this->gp.init(_path_to_init.value());
     this->gp.load(_gaussian_process_file.value(), "m");
-    std::vector<std::string> param_names = gp.parameterNames("m");
+    std::vector<std::string> param_names = gp.parameterNames("m.model");
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Loaded Gaussian Process with parameters: ";
     for (std::vector<std::string>::const_iterator it = param_names.begin(); it != param_names.end(); ++it)
     {
@@ -207,7 +207,6 @@ std::vector<double> GpyTask::meanSamples()
                                                  it != this->position_joint_names.end(); ++it)
     {
         double position_mean = 0.00;
-        std::cout<<"POSITION JOINT NAME: "<<*it<<"\n";
 
         for (std::list< ::base::samples::Joints >::const_iterator ir = this->joints_samples.begin();
                                                                   ir != this->joints_samples.end(); ++ir)
@@ -224,7 +223,6 @@ std::vector<double> GpyTask::meanSamples()
                                                  it != this->speed_joint_names.end(); ++it)
     {
         double speed_mean = 0.00;
-        std::cout<<"SPEED JOINT NAME: "<<*it<<"\n";
 
         for (std::list< ::base::samples::Joints >::const_iterator ir = this->joints_samples.begin();
                                                                   ir != this->joints_samples.end(); ++ir)
@@ -252,7 +250,6 @@ std::vector<double> GpyTask::meanSamples()
     /** ******************* **/
     std::vector<double> inertial_values (this->inertial_samples.front().acc.size() +
             this->inertial_samples.front().gyro.size());
-    std::cout<<"[GP_ODOMETRY MEAN_SAMPLES] inertial values size: "<<inertial_values.size()<<"\n";
 
     for(std::list< ::base::samples::IMUSensors >::const_iterator it = this->inertial_samples.begin();
                                                  it != this->inertial_samples.end(); ++it)
