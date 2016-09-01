@@ -31,8 +31,6 @@ void GpyTask::delta_pose_samplesCallback(const base::Time &ts, const ::base::sam
             &&(this->orientation_samples.size() == this->gp_number_samples)
             &&(this->inertial_samples.size() == this->gp_number_samples))
     {
-        std::cout<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] TRIGGER PREDICTION\n";
-
         /** Input vector **/
         std::vector<double> input_vector = this->meanSamples();
 
@@ -44,12 +42,14 @@ void GpyTask::delta_pose_samplesCallback(const base::Time &ts, const ::base::sam
         this->orientation_samples.clear();
         this->inertial_samples.clear();
 
+        #ifdef DEBUG_PRINTS
         std::cout<<"[GP_ODOMETRY DELTA_POSE_SAMPLES] PRED_MEAN: ";
         for (std::vector<double>::const_iterator it = this->pred_mean.begin(); it != this->pred_mean.end(); ++it)
         {
             std::cout << *it << ' ';
         }
         std::cout<<"\n";
+        #endif
     }
 
     /** Residual as uncertainty in delta position **/
@@ -308,6 +308,7 @@ std::vector<double> GpyTask::meanSamples()
         samples_mean.push_back(inertial_values[i]);
     }
 
+    #ifdef DEBUG_PRINTS
     std::cout<<"[GP_ODOMETRY MEAN_SAMPLES] samples_mean of size: "<< samples_mean.size() <<"\n";
 
     for (std::vector<double>::const_iterator i = samples_mean.begin(); i != samples_mean.end(); ++i)
@@ -315,6 +316,7 @@ std::vector<double> GpyTask::meanSamples()
         std::cout << *i << ' ';
     }
     std::cout<<"\n";
+    #endif
 
     return samples_mean;
 }
