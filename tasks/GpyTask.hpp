@@ -55,7 +55,7 @@ namespace gp_odometry{
         /***************************/
         std::list< ::base::samples::Joints > joints_samples;
 
-        std::list< ::base::samples::RigidBodyState > orientation_samples;
+        std::list< ::base::Vector3d > orientation_samples;
 
         std::list< ::base::samples::IMUSensors > inertial_samples;
 
@@ -153,6 +153,8 @@ namespace gp_odometry{
         /** @brief Computes the mean samples
          * */
         std::vector<double> meanSamples();
+
+        void orientationToEuler(const ::base::Orientation &orient, ::base::Vector3d &euler);
 
     };
 }

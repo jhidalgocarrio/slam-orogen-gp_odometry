@@ -168,7 +168,8 @@ bool SklearnTask::configureHook()
     /*************************************************/
     /** Create and configure the Gaussian processes **/
     /*************************************************/
-    this->gp_x.init(_gaussian_process_x_axis_file.value(), "gp_x");
+    this->gp_x.init(_path_to_init.value());
+    this->gp_x.load(_gaussian_process_x_axis_file.value(), "gp_x");
     std::vector<double> kernel_params = this->gp_x.theta_("gp_x");
 
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Model for X-axis with Kernel parameters: [ ";
@@ -179,7 +180,8 @@ bool SklearnTask::configureHook()
     }
     RTT::log(RTT::Warning)<<"]"<<RTT::endlog();
 
-    this->gp_y.init(_gaussian_process_y_axis_file.value(), "gp_y");
+    this->gp_y.init(_path_to_init.value());
+    this->gp_y.load(_gaussian_process_y_axis_file.value(), "gp_y");
     kernel_params = this->gp_y.theta_("gp_y");
 
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Model for Y-axis with Kernel parameters: [ ";
@@ -190,7 +192,8 @@ bool SklearnTask::configureHook()
     }
     RTT::log(RTT::Warning)<<"]"<<RTT::endlog();
 
-    this->gp_z.init(_gaussian_process_z_axis_file.value(), "gp_z");
+    this->gp_z.init(_path_to_init.value());
+    this->gp_z.load(_gaussian_process_z_axis_file.value(), "gp_z");
     kernel_params = this->gp_z.theta_("gp_z");
 
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian Process Model for Y-axis with Kernel parameters: [ ";

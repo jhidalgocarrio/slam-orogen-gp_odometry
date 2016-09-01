@@ -30,6 +30,9 @@ task_context "SklearnTask" do
     #**************************
     #**** Task Properties *****
     #**************************
+    property('path_to_init', '/std/string').
+        doc "path to be load during initialization time (in case of required)"
+
     property('gaussian_process_x_axis_file', '/std/string').
         doc "path to Gaussian Process for the Sklearn for x axis model."
 
@@ -100,6 +103,9 @@ task_context "GpyTask" do
     #**************************
     #**** Task Properties *****
     #**************************
+    property('path_to_init', '/std/string').
+        doc "path to be load during initialization time (is required)"
+
     property('gaussian_process_file', '/std/string').
         doc "path to Gaussian Process model."
 

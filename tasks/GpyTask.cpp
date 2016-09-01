@@ -2,7 +2,7 @@
 
 #include "GpyTask.hpp"
 
-//#define DEBUG_PRINTS 1
+#define DEBUG_PRINTS 1
 
 using namespace gp_odometry;
 
@@ -101,7 +101,10 @@ void GpyTask::orientation_samplesCallback(const base::Time &ts, const ::base::sa
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY ORIENTATION_SAMPLES] orientation_samples.size(): "<<this->orientation_samples.size()<<RTT::endlog();
     #endif
 
-    this->orientation_samples.push_back(orientation_samples_sample);
+    base::Vector3d euler_orientation;
+    this->orientationToEuler (orientation_samples_sample.orientation, euler_orientation);
+
+    this->orientation_samples.push_back(euler_orientation);
 
     if(this->orientation_samples.size() > this->gp_number_samples)
     {
@@ -135,7 +138,8 @@ bool GpyTask::configureHook()
     /*************************************************/
     /** Create and configure the Gaussian processes **/
     /*************************************************/
-    this->gp.init(_gaussian_process_file.value(), "m");
+    this->gp.init(_path_to_init.value());
+    this->gp.load(_gaussian_process_file.value(), "m");
     std::vector<std::string> param_names = gp.parameterNames("m");
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Loaded Gaussian Process with parameters: ";
     for (std::vector<std::string>::const_iterator it = param_names.begin(); it != param_names.end(); ++it)
@@ -188,13 +192,10 @@ void GpyTask::cleanupHook()
 
 std::vector<double> GpyTask::meanSamples()
 {
-    Eigen::Quaterniond orientation_quaternion;
-    std::vector<double> inertial_values;
     std::vector<double> position_joints, speed_joints;
-    std::vector<double> samples_mean;
 
     #ifdef DEBUG_PRINTS
-    RTT::log(RTT::Warning)<<"[GP_ODOMETRY MEAN_SAMPLES] "<<RTT::endlog();
+    RTT::log(RTT::Warning)<<"[GP_ODOMETRY MEAN_SAMPLES] ["<<this->orientation_samples.size()<<"] ["<<this->inertial_samples.size()<<"] ["<<this->joints_samples.size()<<"]"<<RTT::endlog();
     #endif
 
     /** ********* **/
@@ -206,6 +207,7 @@ std::vector<double> GpyTask::meanSamples()
                                                  it != this->position_joint_names.end(); ++it)
     {
         double position_mean = 0.00;
+        std::cout<<"POSITION JOINT NAME: "<<*it<<"\n";
 
         for (std::list< ::base::samples::Joints >::const_iterator ir = this->joints_samples.begin();
                                                                   ir != this->joints_samples.end(); ++ir)
@@ -222,6 +224,7 @@ std::vector<double> GpyTask::meanSamples()
                                                  it != this->speed_joint_names.end(); ++it)
     {
         double speed_mean = 0.00;
+        std::cout<<"SPEED JOINT NAME: "<<*it<<"\n";
 
         for (std::list< ::base::samples::Joints >::const_iterator ir = this->joints_samples.begin();
                                                                   ir != this->joints_samples.end(); ++ir)
@@ -236,32 +239,21 @@ std::vector<double> GpyTask::meanSamples()
     /** ******************* **/
     /** Orientation samples **/
     /** ******************* **/
-    double w = 0.00;
-    double x = 0.00;
-    double y = 0.00;
-    double z = 0.00;
-
-    for (std::list< ::base::samples::RigidBodyState >::iterator it=this->orientation_samples.begin(); it != this->orientation_samples.end(); ++it)
+    ::base::Vector3d euler; euler.setZero();
+    for (std::list< ::base::Vector3d >::iterator it=this->orientation_samples.begin(); it != this->orientation_samples.end(); ++it)
     {
-        w += (*it).orientation.w();
-        x += (*it).orientation.x();
-        y += (*it).orientation.y();
-        z += (*it).orientation.z();
+        euler += (*it);
     }
 
-    w = w/static_cast<double>(this->orientation_samples.size());
-    x = x/static_cast<double>(this->orientation_samples.size());
-    y = y/static_cast<double>(this->orientation_samples.size());
-    z = z/static_cast<double>(this->orientation_samples.size());
-    orientation_quaternion = Eigen::Quaterniond(w, x, y, z);
-    orientation_quaternion.normalize();
-
+    euler = euler/static_cast<double>(this->orientation_samples.size());
 
     /** ******************* **/
     /** Inertial Values     **/
     /** ******************* **/
-    inertial_values.resize(this->inertial_samples.front().acc.size() +
+    std::vector<double> inertial_values (this->inertial_samples.front().acc.size() +
             this->inertial_samples.front().gyro.size());
+    std::cout<<"[GP_ODOMETRY MEAN_SAMPLES] inertial values size: "<<inertial_values.size()<<"\n";
+
     for(std::list< ::base::samples::IMUSensors >::const_iterator it = this->inertial_samples.begin();
                                                  it != this->inertial_samples.end(); ++it)
     {
@@ -284,9 +276,9 @@ std::vector<double> GpyTask::meanSamples()
     /** ******************* **/
     /** Mean samples vector **/
     /** ******************* **/
+    std::vector<double> samples_mean;
 
     /** Orientation **/
-    ::base::Vector3d euler = base::getEuler(orientation_quaternion);
     samples_mean.push_back(euler[2]);//Roll
     samples_mean.push_back(euler[1]);//Pitch
 
@@ -321,3 +313,10 @@ std::vector<double> GpyTask::meanSamples()
     return samples_mean;
 }
 
+void GpyTask::orientationToEuler(const ::base::Orientation &orient, ::base::Vector3d &euler)
+{
+
+    euler = ::base::getEuler(orient);
+
+    return;
+}
