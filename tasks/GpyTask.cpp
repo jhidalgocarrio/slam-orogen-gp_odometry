@@ -52,13 +52,21 @@ void GpyTask::delta_pose_samplesCallback(const base::Time &ts, const ::base::sam
         #endif
     }
 
-    /** Residual as uncertainty in delta position **/
-    ::base::samples::RigidBodyState delta_pose = delta_pose_samples_sample;
+    /** Delta time **/
+    ::base::Time delta_time;
+    if (this->delta_pose.hasValidPosition())
+        delta_time = delta_pose_samples_sample.time - this->delta_pose.time;
+    else
+        delta_time.fromMicroseconds(0.00);
+
+    /** Velocity Residual as uncertainty in delta pose **/
+    this->delta_pose = delta_pose_samples_sample;
     ::base::Vector3d prediction = Eigen::Map<const Eigen::Vector3d> (&(this->pred_mean[0]), this->pred_mean.size());
-    delta_pose.cov_position = static_cast<base::Matrix3d>(prediction.asDiagonal());
+    this->delta_pose.cov_velocity = static_cast<base::Matrix3d>(prediction.asDiagonal());
+    this->delta_pose.cov_position = delta_time.toSeconds() * this->delta_pose.cov_velocity;
 
     /** Port out the delta pose **/
-    _delta_pose_samples_out.write(delta_pose);
+    _delta_pose_samples_out.write(this->delta_pose);
 }
 
 void GpyTask::inertial_samplesCallback(const base::Time &ts, const ::base::samples::IMUSensors &inertial_samples_sample)
@@ -152,6 +160,9 @@ bool GpyTask::configureHook()
     /** Configure the prediction variables **/
     this->pred_mean.resize(3);
     this->pred_var.resize(1);
+
+    /** Initialize the delta pose rbs **/
+    this->delta_pose.invalidate();
 
     /*****************************/
     /** Clear storage variables **/
