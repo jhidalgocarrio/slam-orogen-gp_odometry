@@ -148,7 +148,7 @@ bool GpyTask::configureHook()
     /*************************************************/
     this->gp.init(_path_to_init.value());
     this->gp.load(_gaussian_process_file.value(), "m");
-    std::vector<std::string> param_names = gp.parameterNames("m.model");
+    std::vector<std::string> param_names = gp.parameterNames("m");
     RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Loaded Gaussian Process with parameters: ";
     for (std::vector<std::string>::const_iterator it = param_names.begin(); it != param_names.end(); ++it)
     {
@@ -156,6 +156,11 @@ bool GpyTask::configureHook()
         RTT::log(RTT::Warning)<< ' ';
     }
     RTT::log(RTT::Warning)<<RTT::endlog();
+
+    if (gp.isNormalized("m"))
+        RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian model is Normalized"<<RTT::endlog();
+    else
+        RTT::log(RTT::Warning)<<"[GP_ODOMETRY] Gaussian model is Unnormalized"<<RTT::endlog();
 
     /** Configure the prediction variables **/
     this->pred_mean.resize(3);
